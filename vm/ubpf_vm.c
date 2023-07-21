@@ -44,8 +44,10 @@ bounds_check(
     int size,
     const char* type,
     uint16_t cur_pc,
-    void* mem,
-    size_t mem_len,
+    void* in_mem,
+    size_t in_mem_len,
+    void* out_mem,
+    size_t out_mem_len,
     void* stack);
 
 bool
@@ -283,7 +285,8 @@ ubpf_mem_store(uint64_t address, uint64_t value, size_t size)
 }
 
 int
-ubpf_exec(const struct ubpf_vm* vm, void* mem, size_t mem_len, uint64_t* bpf_return_value)
+ubpf_exec(const struct ubpf_vm* vm, void* in_mem, size_t in_mem_len,
+          void* out_mem, size_t out_mem_len, uint64_t* bpf_return_value)
 {
     uint16_t pc = 0;
     const struct ebpf_inst* insts = vm->insts;
@@ -330,8 +333,10 @@ ubpf_exec(const struct ubpf_vm* vm, void* mem, size_t mem_len, uint64_t* bpf_ret
     reg = _reg;
 #endif
 
-    reg[1] = (uintptr_t)mem;
-    reg[2] = (uint64_t)mem_len;
+    reg[1] = (uintptr_t)in_mem;
+    reg[2] = (uint64_t)in_mem_len;
+    reg[3] = (uintptr_t)out_mem;
+    reg[4] = (uint64_t)out_mem_len;
     reg[10] = (uintptr_t)stack + UBPF_STACK_SIZE;
 
     while (1) {
@@ -539,14 +544,14 @@ ubpf_exec(const struct ubpf_vm* vm, void* mem, size_t mem_len, uint64_t* bpf_ret
              */
 #define BOUNDS_CHECK_LOAD(size)                                                                                 \
     do {                                                                                                        \
-        if (!bounds_check(vm, (char*)reg[inst.src] + inst.offset, size, "load", cur_pc, mem, mem_len, stack)) { \
+        if (!bounds_check(vm, (char*)reg[inst.src] + inst.offset, size, "load", cur_pc, in_mem, in_mem_len, out_mem, out_mem_len, stack)) { \
             return_value = -1;                                                                                  \
             goto cleanup;                                                                                       \
         }                                                                                                       \
     } while (0)
 #define BOUNDS_CHECK_STORE(size)                                                                                 \
     do {                                                                                                         \
-        if (!bounds_check(vm, (char*)reg[inst.dst] + inst.offset, size, "store", cur_pc, mem, mem_len, stack)) { \
+        if (!bounds_check(vm, (char*)reg[inst.dst] + inst.offset, size, "store", cur_pc, in_mem, in_mem_len, out_mem, out_mem_len, stack)) { \
             return_value = -1;                                                                                   \
             goto cleanup;                                                                                        \
         }                                                                                                        \
@@ -1114,14 +1119,18 @@ bounds_check(
     int size,
     const char* type,
     uint16_t cur_pc,
-    void* mem,
-    size_t mem_len,
+    void* in_mem,
+    size_t in_mem_len,
+    void* out_mem,
+    size_t out_mem_len,
     void* stack)
 {
     if (!vm->bounds_check_enabled)
         return true;
-    if (mem && (addr >= mem && ((char*)addr + size) <= ((char*)mem + mem_len))) {
+    if (in_mem && (addr >= in_mem && ((char*)addr + size) <= ((char*)in_mem + in_mem_len))) {
         /* Context access */
+        return true;
+    } else if (out_mem && (addr >= out_mem && ((char*)addr + size) <= ((char*)out_mem + out_mem_len))) {
         return true;
     } else if (addr >= stack && ((char*)addr + size) <= ((char*)stack + UBPF_STACK_SIZE)) {
         /* Stack access */
@@ -1134,13 +1143,15 @@ bounds_check(
     } else {
         vm->error_printf(
             stderr,
-            "uBPF error: out of bounds memory %s at PC %u, addr %p, size %d\nmem %p/%zd stack %p/%d\n",
+            "uBPF error: out of bounds memory %s at PC %u, addr %p, size %d\nin_mem %p/%zd out_mem %p/%zd stack %p/%d\n",
             type,
             cur_pc,
             addr,
             size,
-            mem,
-            mem_len,
+            in_mem,
+            in_mem_len,
+            out_mem,
+            out_mem_len,
             stack,
             UBPF_STACK_SIZE);
         return false;

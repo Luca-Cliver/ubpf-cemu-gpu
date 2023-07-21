@@ -159,11 +159,11 @@ int main(int argc, char **argv)
             free(error);
             return 1;
         }
-        actual_result = fn(memory.data(), memory.size());
+        actual_result = fn(memory.data(), memory.size(), NULL, 0);
     }
     else
     {
-        if (ubpf_exec(vm.get(), memory.data(), memory.size(), &actual_result) != 0)
+        if (ubpf_exec(vm.get(), memory.data(), memory.size(), NULL, 0, &actual_result) != 0)
         {
             std::cerr << "Failed to execute program" << std::endl;
             return 1;

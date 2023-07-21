@@ -61,7 +61,8 @@ extern "C"
     /**
      * @brief Opaque type for a uBPF JIT compiled function.
      */
-    typedef uint64_t (*ubpf_jit_fn)(void* mem, size_t mem_len);
+    typedef uint64_t (*ubpf_jit_fn)(void* in_mem, size_t in_mem_len,
+                                    void* out_mem, size_t out_mem_len);
 
     /**
      * @brief Create a new uBPF VM.
@@ -216,7 +217,7 @@ extern "C"
      * @retval -1 Failure.
      */
     int
-    ubpf_exec(const struct ubpf_vm* vm, void* mem, size_t mem_len, uint64_t* bpf_return_value);
+    ubpf_exec(const struct ubpf_vm* vm, void* in_mem, size_t in_mem_len, void* out_mem, size_t out_mem_len, uint64_t* bpf_return_value);
 
     /**
      * @brief Compile a BPF program in the VM to native code.
