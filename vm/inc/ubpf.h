@@ -218,7 +218,9 @@ extern "C"
      * @retval -1 Failure.
      */
     int
-    ubpf_exec(const struct ubpf_vm* vm, void* in_mem, size_t in_mem_len, void* out_mem, size_t out_mem_len, uint64_t* bpf_return_value);
+    ubpf_exec(const struct ubpf_vm* vm, int numr, void** mr_addr, long long* mr_len,
+                long long cparam1, long long cparam2,
+                void* data_buffer, long long buffer_len, uint64_t* bpf_return_value);
 
     /**
      * @brief Compile a BPF program in the VM to native code.

@@ -323,6 +323,7 @@ load:
     }
 
     uint64_t ret;
+    long long size = mem_len;
 
     if (jit) {
         ubpf_jit_fn fn = ubpf_compile(vm, &errmsg);
@@ -332,9 +333,9 @@ load:
             free(mem);
             return 1;
         }
-        ret = fn(mem, mem_len, NULL, 0);
+        ret = fn(1, &mem, &size, 0, 0, NULL, 0);
     } else {
-        if (ubpf_exec(vm, mem, mem_len, NULL, 0, &ret) < 0)
+        if (ubpf_exec(vm, 1, &mem, &size, 0, 0, NULL, 0, &ret) < 0)
             ret = UINT64_MAX;
     }
 

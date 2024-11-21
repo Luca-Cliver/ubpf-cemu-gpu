@@ -149,6 +149,8 @@ int main(int argc, char **argv)
     }
 
     uint64_t actual_result;
+    void *mem = memory.data();
+    long long size = memory.size();
     if (jit)
     {
         ubpf_jit_fn fn = ubpf_compile(vm.get(), &error);
@@ -159,11 +161,11 @@ int main(int argc, char **argv)
             free(error);
             return 1;
         }
-        actual_result = fn(memory.data(), memory.size(), NULL, 0);
+        actual_result = fn(1, &mem, &size, 0, 0, NULL, 0);
     }
     else
     {
-        if (ubpf_exec(vm.get(), memory.data(), memory.size(), NULL, 0, &actual_result) != 0)
+        if (ubpf_exec(vm.get(), 1, &mem, &size, 0, 0, NULL, 0, &actual_result) != 0)
         {
             std::cerr << "Failed to execute program" << std::endl;
             return 1;
