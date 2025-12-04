@@ -324,6 +324,13 @@ load:
 
     uint64_t ret;
     long long size = mem_len;
+    struct ubpf_jit_args args = {
+        .numr = 1,
+        .mr_addr = &mem,
+        .mr_len = &size,
+        .data_buffer = NULL,
+        .buffer_len = 0,
+    };
 
     if (jit) {
         ubpf_jit_fn fn = ubpf_compile(vm, &errmsg);
@@ -333,9 +340,9 @@ load:
             free(mem);
             return 1;
         }
-        ret = fn(1, &mem, &size, 0, 0, NULL, 0);
+        ret = fn(&args);
     } else {
-        if (ubpf_exec(vm, 1, &mem, &size, 0, 0, NULL, 0, &ret) < 0)
+        if (ubpf_exec(vm, &args, &ret) < 0)
             ret = UINT64_MAX;
     }
 

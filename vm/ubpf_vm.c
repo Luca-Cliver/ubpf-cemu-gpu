@@ -44,6 +44,7 @@ bounds_check(
     int size,
     const char* type,
     uint16_t cur_pc,
+    struct ubpf_jit_args* args,
     int numr,
     void** mr_addr,
     long long* mr_len,
@@ -286,9 +287,7 @@ ubpf_mem_store(uint64_t address, uint64_t value, size_t size)
 }
 
 int
-ubpf_exec(const struct ubpf_vm* vm, int numr, void** mr_addr, long long* mr_len,
-            long long cparam1, long long cparam2,
-            void* data_buffer, long long buffer_len, uint64_t* bpf_return_value)
+ubpf_exec(const struct ubpf_vm* vm, struct ubpf_jit_args* args, uint64_t* bpf_return_value)
 {
     uint16_t pc = 0;
     const struct ebpf_inst* insts = vm->insts;
@@ -296,6 +295,12 @@ ubpf_exec(const struct ubpf_vm* vm, int numr, void** mr_addr, long long* mr_len,
     uint64_t _reg[16];
     uint64_t ras_index = 0;
     int return_value = -1;
+
+    int numr = args->numr;
+    void** mr_addr = args->mr_addr;
+    long long* mr_len = args->mr_len;
+    void* data_buffer = args->data_buffer;
+    long long buffer_len = args->buffer_len;
 
 // Windows Kernel mode limits stack usage to 12K, so we need to allocate it dynamically.
 #if defined(NTDDI_VERSION) && defined(WINNT)
@@ -335,13 +340,7 @@ ubpf_exec(const struct ubpf_vm* vm, int numr, void** mr_addr, long long* mr_len,
     reg = _reg;
 #endif
 
-    reg[1] = (int)numr;
-    reg[2] = (uintptr_t)mr_addr;
-    reg[3] = (uintptr_t)mr_len;
-    reg[4] = (long long)cparam1;
-    reg[5] = (long long)cparam2;
-    reg[6] = (uintptr_t)data_buffer;
-    reg[7] = (long long)buffer_len;
+    reg[1] = (uintptr_t)args;
     reg[10] = (uintptr_t)stack + UBPF_STACK_SIZE;
 
     while (1) {
@@ -549,14 +548,14 @@ ubpf_exec(const struct ubpf_vm* vm, int numr, void** mr_addr, long long* mr_len,
              */
 #define BOUNDS_CHECK_LOAD(size)                                                                                 \
     do {                                                                                                        \
-        if (!bounds_check(vm, (char*)reg[inst.src] + inst.offset, size, "load", cur_pc, numr, mr_addr, mr_len, data_buffer, buffer_len, stack)) { \
+        if (!bounds_check(vm, (char*)reg[inst.src] + inst.offset, size, "load", cur_pc, args, numr, mr_addr, mr_len, data_buffer, buffer_len, stack)) { \
             return_value = -1;                                                                                  \
             goto cleanup;                                                                                       \
         }                                                                                                       \
     } while (0)
 #define BOUNDS_CHECK_STORE(size)                                                                                 \
     do {                                                                                                         \
-        if (!bounds_check(vm, (char*)reg[inst.dst] + inst.offset, size, "store", cur_pc, numr, mr_addr, mr_len, data_buffer, buffer_len, stack)) { \
+        if (!bounds_check(vm, (char*)reg[inst.dst] + inst.offset, size, "store", cur_pc, args, numr, mr_addr, mr_len, data_buffer, buffer_len, stack)) { \
             return_value = -1;                                                                                   \
             goto cleanup;                                                                                        \
         }                                                                                                        \
@@ -1124,6 +1123,7 @@ bounds_check(
     int size,
     const char* type,
     uint16_t cur_pc,
+    struct ubpf_jit_args* args,
     int numr,
     void** mr_addr,
     long long* mr_len,
@@ -1133,6 +1133,15 @@ bounds_check(
 {
     if (!vm->bounds_check_enabled)
         return true;
+    if (addr >= (void*)args && (char*)addr <= ((char*)args) + sizeof(struct ubpf_jit_args)) {
+        return true;
+    }
+    if (addr >= (void*)mr_addr && addr <= (void*)(mr_addr + numr)) {
+        return true;
+    }
+    if (addr >= (void*)mr_len && addr <= (void*)(mr_len + numr)) {
+        return true;
+    }
     for (int i = 0; i < numr; i++) {
         if (addr >= mr_addr[i] && ((char*)addr + size) <= ((char*)mr_addr[i] + mr_len[i])) {
             return true;

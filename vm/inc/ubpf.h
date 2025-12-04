@@ -58,12 +58,21 @@ extern "C"
      */
     struct ubpf_vm;
 
+    struct ubpf_jit_args
+    {
+        int numr;
+        void** mr_addr;
+        long long* mr_len;
+        long long cparam1;
+        long long cparam2;
+        void* data_buffer;
+        long long buffer_len;
+    } __attribute__((packed));
+
     /**
      * @brief Opaque type for a uBPF JIT compiled function.
      */
-    typedef uint64_t (*ubpf_jit_fn)(int numr, void** mr_addr, long long* mr_len,
-                                    long long cparam1, long long cparam2,
-                                    void* data_buffer, long long buffer_len);
+    typedef long long (*ubpf_jit_fn)(struct ubpf_jit_args* args);
 
     /**
      * @brief Create a new uBPF VM.
@@ -218,9 +227,7 @@ extern "C"
      * @retval -1 Failure.
      */
     int
-    ubpf_exec(const struct ubpf_vm* vm, int numr, void** mr_addr, long long* mr_len,
-                long long cparam1, long long cparam2,
-                void* data_buffer, long long buffer_len, uint64_t* bpf_return_value);
+    ubpf_exec(const struct ubpf_vm* vm, struct ubpf_jit_args* args, uint64_t* bpf_return_value);
 
     /**
      * @brief Compile a BPF program in the VM to native code.
