@@ -62,6 +62,8 @@ extern "C"
     {
         int numr;
         void** mr_addr;
+         /* device-side pointers corresponding to mr_addr (nullable) */
+        void** mr_dev_addr;
         long long* mr_len;
         long long cparam1;
         long long cparam2;
